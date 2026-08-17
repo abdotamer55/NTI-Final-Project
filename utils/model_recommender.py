@@ -19,6 +19,19 @@ from sklearn.metrics import (
 )
 from utils.pipeline_manager import detect_problem_type, build_preprocessor
 
+# Class balancing is optional and only kicks in if imbalanced-learn is
+# installed. If it's missing, train_recommended_models raises a clear
+# ValueError (instead of crashing on import) so the UI can show install
+# instructions.
+try:
+    from imblearn.pipeline import Pipeline as ImbPipeline
+    from imblearn.over_sampling import RandomOverSampler, SMOTE
+    from imblearn.under_sampling import RandomUnderSampler
+    IMBLEARN_AVAILABLE = True
+except ImportError:
+    IMBLEARN_AVAILABLE = False
+
+
 def get_available_models(problem_type):
     if problem_type == "Classification":
         return {
@@ -43,7 +56,66 @@ def get_available_models(problem_type):
             "Support Vector Regressor": SVR()
         }
 
-def train_recommended_models(df, target, selected_models=None, test_size=0.20, cv_folds=5, random_state=42):
+
+def get_class_distribution(y):
+    """Return a small summary DataFrame of class counts/percentages, plus the imbalance ratio (majority/minority)."""
+    counts = y.value_counts()
+    dist_df = pd.DataFrame({
+        "Class": counts.index.astype(str),
+        "Count": counts.values,
+        "Percent": (counts.values / counts.sum() * 100).round(2)
+    })
+    ratio = float(counts.max() / counts.min()) if counts.min() > 0 else float("inf")
+    return dist_df, ratio
+
+
+def _build_sampler(balance_strategy, y_train):
+    """
+    Returns (sampler_or_None, warning_message_or_None).
+    Falls back to a safer sampler (with a warning) if the requested one
+    isn't statistically valid for the given training data.
+    """
+    if balance_strategy in (None, "none"):
+        return None, None
+
+    if not IMBLEARN_AVAILABLE:
+        raise ValueError(
+            "Class balancing requires the 'imbalanced-learn' package, which isn't installed. "
+            "Run: pip install imbalanced-learn"
+        )
+
+    class_counts = y_train.value_counts()
+    min_class_count = int(class_counts.min())
+
+    if balance_strategy == "oversample":
+        return RandomOverSampler(random_state=42), None
+
+    if balance_strategy == "undersample":
+        if min_class_count < 1:
+            return None, "Undersampling skipped: smallest class has 0 samples in the training split."
+        return RandomUnderSampler(random_state=42), None
+
+    if balance_strategy == "smote":
+        # SMOTE needs at least k_neighbors + 1 samples in the smallest class.
+        if min_class_count < 6:
+            return RandomOverSampler(random_state=42), (
+                f"SMOTE needs at least 6 samples in the smallest class (found {min_class_count}). "
+                "Used Random Oversampling instead."
+            )
+        k = min(5, min_class_count - 1)
+        return SMOTE(random_state=42, k_neighbors=k), None
+
+    raise ValueError(f"Unknown balance_strategy '{balance_strategy}'.")
+
+
+def train_recommended_models(df, target, selected_models=None, test_size=0.20, cv_folds=5,
+                              random_state=42, balance_strategy="none"):
+    """
+    Same return signature as before: (problem_type, results, bundles, feature_names, eval_data).
+    eval_data now also carries an optional "balance_info" key when
+    balance_strategy != "none":
+        {"strategy": str, "applied": bool, "warning": str | None, "distribution_before": DataFrame}
+    """
     X = df.drop(columns=[target])
     y = df[target]
 
@@ -51,6 +123,10 @@ def train_recommended_models(df, target, selected_models=None, test_size=0.20, c
     X, y = X.loc[valid], y.loc[valid]
 
     problem_type = detect_problem_type(y)
+
+    if balance_strategy not in (None, "none") and problem_type != "Classification":
+        raise ValueError("Class balancing only applies to classification targets.")
+
     all_models = get_available_models(problem_type)
 
     if selected_models:
@@ -71,6 +147,22 @@ def train_recommended_models(df, target, selected_models=None, test_size=0.20, c
 
     preprocessor = build_preprocessor(X)
 
+    # Balancing is resolved once here (based on the training split only) and
+    # reused for every candidate model below, so all models are compared on
+    # a level footing.
+    balance_info = None
+    sampler_template = None
+    if balance_strategy not in (None, "none"):
+        sampler_template, warning = _build_sampler(balance_strategy, y_train)
+        dist_before, ratio_before = get_class_distribution(y_train)
+        balance_info = {
+            "strategy": balance_strategy,
+            "applied": sampler_template is not None,
+            "warning": warning,
+            "distribution_before": dist_before,
+            "imbalance_ratio_before": ratio_before,
+        }
+
     results = []
     bundles = {}
     eval_data = {
@@ -78,12 +170,23 @@ def train_recommended_models(df, target, selected_models=None, test_size=0.20, c
         "y_test": y_test,
         "problem_type": problem_type
     }
+    if balance_info is not None:
+        eval_data["balance_info"] = balance_info
 
     for name, model in candidate_models.items():
-        pipeline = Pipeline([
-            ("preprocessor", preprocessor),
-            ("model", model)
-        ])
+        if sampler_template is not None:
+            # sklearn's cross_val_score clones each pipeline step per fold,
+            # so passing the same sampler instance is safe here.
+            pipeline = ImbPipeline([
+                ("preprocessor", preprocessor),
+                ("sampler", sampler_template),
+                ("model", model)
+            ])
+        else:
+            pipeline = Pipeline([
+                ("preprocessor", preprocessor),
+                ("model", model)
+            ])
 
         pipeline.fit(X_train, y_train)
         preds = pipeline.predict(X_test)
@@ -93,8 +196,9 @@ def train_recommended_models(df, target, selected_models=None, test_size=0.20, c
             f1 = f1_score(y_test, preds, average="weighted", zero_division=0)
             prec = precision_score(y_test, preds, average="weighted", zero_division=0)
             rec = recall_score(y_test, preds, average="weighted", zero_division=0)
-            
-            # Cross validation
+
+            # Cross validation (the sampler, if any, is refit within each
+            # fold automatically since it's part of the pipeline).
             try:
                 cv_scores = cross_val_score(pipeline, X, y, cv=cv_folds, scoring="accuracy")
                 cv_mean = float(cv_scores.mean())
@@ -133,10 +237,11 @@ def train_recommended_models(df, target, selected_models=None, test_size=0.20, c
 
     return problem_type, results, bundles, X.columns.tolist(), eval_data
 
+
 def train_kmeans_clustering(df, n_clusters=3, features=None):
     if features is None:
         features = df.select_dtypes(include=np.number).columns.tolist()
-    
+
     X = df[features].dropna()
     if len(X) < n_clusters:
         return None, None

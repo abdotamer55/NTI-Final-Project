@@ -11,8 +11,18 @@ from utils.pipeline_manager import detect_problem_type
 from utils.model_recommender import (
     get_available_models,
     train_recommended_models,
-    train_kmeans_clustering
+    train_kmeans_clustering,
+    get_class_distribution,
+    IMBLEARN_AVAILABLE,
 )
+
+BALANCE_OPTIONS = {
+    "None (keep as-is)": "none",
+    "Random Oversampling": "oversample",
+    "Random Undersampling": "undersample",
+    "SMOTE (synthetic oversampling)": "smote",
+}
+
 
 def render():
     page_header("🤖 Machine Learning & Clustering Studio", "Train, evaluate, and diagnose machine learning models and unsupervised clustering pipelines.")
@@ -47,6 +57,36 @@ def render():
         with c4:
             cv_folds = st.slider("Cross-Validation Folds", 2, 10, 5, key="ml_cv_folds")
 
+        # --- Class distribution & balancing (classification only) --- #
+        balance_key = "none"
+        if detected_type == "Classification" and target in df:
+            dist_df, ratio = get_class_distribution(df[target].dropna())
+
+            with st.expander(f"📊 Class Distribution (imbalance ratio: {ratio:.1f}x)", expanded=ratio >= 3):
+                st.dataframe(dist_df, use_container_width=True, hide_index=True)
+                if ratio >= 3:
+                    st.warning(
+                        f"The largest class is **{ratio:.1f}x** bigger than the smallest. "
+                        "This is common in real-world data, but a model trained as-is will likely "
+                        "favor the majority class. Consider balancing the training data below."
+                    )
+
+                if not IMBLEARN_AVAILABLE:
+                    st.caption("⚠️ Install `imbalanced-learn` (`pip install imbalanced-learn`) to enable balancing options below.")
+
+                balance_label = st.selectbox(
+                    "Balance training data before fitting",
+                    list(BALANCE_OPTIONS.keys()),
+                    index=0,
+                    key="ml_balance_strategy",
+                    disabled=not IMBLEARN_AVAILABLE,
+                    help=(
+                        "Applied ONLY to the training split, inside the pipeline — the test set "
+                        "always stays in its original, real-world distribution."
+                    ),
+                )
+                balance_key = BALANCE_OPTIONS[balance_label]
+
         available_dict = get_available_models(detected_type)
         selected_model_names = st.multiselect(
             "Select Algorithms to Compare",
@@ -59,60 +99,69 @@ def render():
             if not selected_model_names:
                 st.warning("Select at least one algorithm to train.")
             else:
-                with st.spinner("Building pipelines and fitting models..."):
-                    raw_df = st.session_state.get("raw_dataset")
-                    base_df = raw_df if (raw_df is not None and target in raw_df.columns) else df
+                try:
+                    with st.spinner("Building pipelines and fitting models..."):
+                        base_df = df
+                        # Extract feature columns excluding target
+                        candidate_cols = [c for c in base_df.columns if c != target]
+                        clean_features = []
+                        for c in candidate_cols:
+                            c_lower = c.lower()
+                            if c_lower.endswith("_id") or c_lower == "id":
+                                continue
+                            if pd.api.types.is_string_dtype(base_df[c]) and base_df[c].nunique() > 0.8 * len(base_df):
+                                continue
+                            clean_features.append(c)
 
-                    # Extract original feature columns excluding target and ID columns
-                    candidate_cols = [c for c in base_df.columns if c != target]
-                    clean_features = []
-                    for c in candidate_cols:
-                        c_lower = c.lower()
-                        if c_lower.endswith("_id") or c_lower == "id":
-                            continue
-                        if pd.api.types.is_string_dtype(base_df[c]) and base_df[c].nunique() > 0.8 * len(base_df):
-                            continue
-                        clean_features.append(c)
+                        sub_df = base_df[clean_features + [target]].copy()
 
-                    sub_df = base_df[clean_features + [target]].copy()
+                        prob_type, results, bundles, features, eval_data = train_recommended_models(
+                            sub_df, target, selected_models=selected_model_names,
+                            test_size=test_size, cv_folds=cv_folds,
+                            balance_strategy=balance_key
+                        )
 
-                    prob_type, results, bundles, features, eval_data = train_recommended_models(
-                        sub_df, target, selected_models=selected_model_names,
-                        test_size=test_size, cv_folds=cv_folds
-                    )
+                    results_df = pd.DataFrame(results)
+                    sort_metric = "Accuracy" if prob_type == "Classification" else "R2 Score"
+                    results_df = results_df.sort_values(sort_metric, ascending=False).reset_index(drop=True)
 
-                results_df = pd.DataFrame(results)
-                sort_metric = "Accuracy" if prob_type == "Classification" else "R2 Score"
-                results_df = results_df.sort_values(sort_metric, ascending=False).reset_index(drop=True)
+                    st.subheader("🏆 Model Leaderboard")
+                    st.dataframe(results_df, use_container_width=True)
 
-                st.subheader("🏆 Model Leaderboard")
-                st.dataframe(results_df, use_container_width=True)
+                    balance_info = eval_data.get("balance_info")
+                    if balance_info:
+                        if balance_info["applied"]:
+                            st.success(f"Training data was balanced using: **{balance_info['strategy']}** (test set left untouched).")
+                        if balance_info["warning"]:
+                            st.warning(balance_info["warning"])
 
-                best_model_name = results_df.iloc[0]["Model"]
-                best_pipeline = bundles[best_model_name]
+                    best_model_name = results_df.iloc[0]["Model"]
+                    best_pipeline = bundles[best_model_name]
 
-                # Save into session state
-                st.session_state.problem_type = prob_type
-                st.session_state.target_column = target
-                st.session_state.best_model_name = best_model_name
-                st.session_state.model_bundle = {
-                    "pipeline": best_pipeline,
-                    "features": features,
-                    "target": target,
-                    "problem_type": prob_type,
-                    "eval_data": eval_data,
-                    "all_bundles": bundles,
-                    "leaderboard": results_df
-                }
+                    # Save into session state
+                    st.session_state.problem_type = prob_type
+                    st.session_state.target_column = target
+                    st.session_state.best_model_name = best_model_name
+                    st.session_state.model_bundle = {
+                        "pipeline": best_pipeline,
+                        "features": features,
+                        "target": target,
+                        "problem_type": prob_type,
+                        "eval_data": eval_data,
+                        "all_bundles": bundles,
+                        "leaderboard": results_df
+                    }
 
-                st.session_state.experiments.append({
-                    "target": target,
-                    "problem_type": prob_type,
-                    "results": results_df,
-                    "best_model": best_model_name
-                })
+                    st.session_state.experiments.append({
+                        "target": target,
+                        "problem_type": prob_type,
+                        "results": results_df,
+                        "best_model": best_model_name
+                    })
 
-                st.success(f"🏆 Best Model Selected: **{best_model_name}** ({sort_metric}: {results_df.iloc[0][sort_metric]:.4f}). Ready for Prediction & Reports!")
+                    st.success(f"🏆 Best Model Selected: **{best_model_name}** ({sort_metric}: {results_df.iloc[0][sort_metric]:.4f}). Ready for Prediction & Reports!")
+                except ValueError as e:
+                    st.error(str(e))
 
     # Tab 2: Diagnostics
     with tabs[1]:
