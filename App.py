@@ -15,7 +15,7 @@ load_css()
 from pages import (
     home, upload, analysis, preprocessing, visualization,
     feature_engineering, machine_learning, experiments,
-    prediction, reports
+    prediction, unsupervised_prediction, reports
 )
 
 PAGES = {
@@ -28,6 +28,7 @@ PAGES = {
     "Machine Learning": machine_learning,
     "Experiments": experiments,
     "Prediction": prediction,
+    "Unsupervised Prediction": unsupervised_prediction,
     "Reports": reports,
 }
 

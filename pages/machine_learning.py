@@ -12,6 +12,8 @@ from utils.model_recommender import (
     get_available_models,
     train_recommended_models,
     train_kmeans_clustering,
+    train_unsupervised_model,
+    UNSUPERVISED_ALGORITHMS,
     get_class_distribution,
     IMBLEARN_AVAILABLE,
 )
@@ -217,37 +219,116 @@ def render():
                     fig_act.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#f8fafc")
                     st.plotly_chart(fig_act, use_container_width=True)
 
-    # Tab 3: Clustering
+    # Tab 3: Unsupervised Clustering & Anomaly Detection
     with tabs[2]:
-        st.subheader("Unsupervised K-Means Clustering")
-        numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
+        st.subheader("🧩 Unsupervised Clustering & Anomaly Detection Studio")
+        st.write(
+            "Train a clustering or anomaly-detection model on your dataset. "
+            "After fitting, navigate to **🧩 Unsupervised Prediction** to score new records."
+        )
 
-        if numeric_cols:
-            k1, k2 = st.columns([1.5, 1.5])
-            with k1:
-                cluster_features = st.multiselect("Select Clustering Features", numeric_cols, default=numeric_cols[:min(4, len(numeric_cols))], key="km_feats")
-            with k2:
-                n_clusters = st.slider("Number of Clusters (K)", 2, 10, 3, key="km_k")
+        all_numeric = df.select_dtypes(include=np.number).columns.tolist()
+        all_cols_us = df.columns.tolist()
 
-            if st.button("🧩 Run K-Means Clustering", type="primary", key="btn_km"):
-                if not cluster_features:
-                    st.warning("Select at least one feature for clustering.")
-                else:
-                    kmeans_model, cluster_info = train_kmeans_clustering(df, n_clusters=n_clusters, features=cluster_features)
-                    if cluster_info:
-                        st.session_state.cluster_model = cluster_info
-                        st.success(f"K-Means completed! Silhouette Score: **{cluster_info['silhouette_score']:.4f}**")
-
-                        cluster_df = cluster_info["cluster_df"]
-                        fig_pca = px.scatter(cluster_df, x="PCA1", y="PCA2", color="Cluster", title=f"K-Means Clustering PCA Projection (K={n_clusters})", opacity=0.85)
-                        fig_pca.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#f8fafc")
-                        st.plotly_chart(fig_pca, use_container_width=True)
-
-                        st.subheader("Cluster Center Feature Averages")
-                        avg_df = cluster_df.groupby("Cluster")[cluster_features].mean().reset_index()
-                        st.dataframe(avg_df, use_container_width=True)
+        if not all_cols_us:
+            st.info("No features available.")
         else:
-            st.info("No numeric features available for clustering.")
+            ua1, ua2 = st.columns([2, 2])
+            with ua1:
+                us_algo = st.selectbox(
+                    "Algorithm",
+                    UNSUPERVISED_ALGORITHMS,
+                    key="us_algo",
+                    help="K-Means / Agglomerative: cluster-label assignment. DBSCAN: density clusters. Isolation Forest: anomaly scoring."
+                )
+            with ua2:
+                us_features = st.multiselect(
+                    "Features to Use",
+                    all_cols_us,
+                    default=all_numeric[:min(5, len(all_numeric))],
+                    key="us_feats"
+                )
+
+            # Per-algorithm hyperparameters
+            us_params = {}
+            hp1, hp2, hp3 = st.columns(3)
+            if us_algo in ("K-Means Clustering", "Agglomerative Clustering"):
+                us_params["n_clusters"] = hp1.slider("Number of Clusters (K)", 2, 15, 3, key="us_k")
+                if us_algo == "Agglomerative Clustering":
+                    us_params["linkage"] = hp2.selectbox(
+                        "Linkage Method", ["ward", "complete", "average", "single"], key="us_linkage"
+                    )
+
+            elif us_algo == "DBSCAN":
+                us_params["eps"]         = hp1.slider("Epsilon (ε) — Neighbourhood Radius", 0.1, 5.0, 0.5, 0.05, key="us_eps")
+                us_params["min_samples"] = hp2.slider("Min Samples per Core Point", 2, 20, 5, key="us_min_s")
+
+            elif us_algo == "Isolation Forest (Anomaly Detection)":
+                us_params["contamination"] = hp1.slider(
+                    "Contamination (expected anomaly fraction)", 0.01, 0.40, 0.05, 0.01, key="us_contam"
+                )
+
+            if st.button("🚀 Train Unsupervised Model", type="primary", use_container_width=True, key="btn_us_train"):
+                if not us_features:
+                    st.warning("Select at least one feature.")
+                else:
+                    try:
+                        with st.spinner(f"Fitting {us_algo}…"):
+                            bundle = train_unsupervised_model(df, us_features, algorithm=us_algo, **us_params)
+                        st.session_state.unsupervised_bundle = bundle
+
+                        # ── Summary metrics ────────────────────────────────
+                        m1, m2, m3 = st.columns(3)
+                        m1.metric("Algorithm", us_algo.split("(")[0].strip())
+                        m2.metric("Features Used", len(us_features))
+                        if bundle["silhouette_score"] is not None:
+                            m3.metric("Silhouette Score", f"{bundle['silhouette_score']:.4f}")
+                        elif us_algo == "Isolation Forest (Anomaly Detection)":
+                            anomaly_count = int((bundle["labels"] == "Anomaly").sum())
+                            m3.metric("Anomalies Detected", f"{anomaly_count:,}")
+                        elif us_algo == "DBSCAN":
+                            noise_count = int((bundle["labels"] == -1).sum())
+                            m3.metric("Noise Points", f"{noise_count:,}")
+
+                        # ── PCA Scatter ────────────────────────────────────
+                        cluster_df = bundle["cluster_df"]
+                        color_col  = "Cluster" if "Cluster" in cluster_df else "Anomaly_Score"
+                        title_str  = f"{us_algo} — PCA 2-D Projection"
+                        if us_algo == "Isolation Forest (Anomaly Detection)" and "Anomaly_Score" in cluster_df:
+                            fig_us = px.scatter(
+                                cluster_df, x="PCA1", y="PCA2",
+                                color="Anomaly_Score",
+                                color_continuous_scale="Reds",
+                                hover_data={c: True for c in us_features if c in cluster_df},
+                                title=title_str, opacity=0.8
+                            )
+                        else:
+                            fig_us = px.scatter(
+                                cluster_df, x="PCA1", y="PCA2",
+                                color="Cluster",
+                                hover_data={c: True for c in us_features if c in cluster_df},
+                                title=title_str, opacity=0.85
+                            )
+                        fig_us.update_layout(
+                            height=480, paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="rgba(0,0,0,0)", font_color="#f8fafc"
+                        )
+                        st.plotly_chart(fig_us, use_container_width=True)
+
+                        # ── Centroid table ─────────────────────────────────
+                        if bundle["cluster_centers"] is not None:
+                            st.markdown("#### Cluster Centroid Feature Averages")
+                            st.dataframe(bundle["cluster_centers"].style.format({
+                                c: "{:.3f}" for c in bundle["cluster_centers"].columns if c != "Cluster"
+                            }), use_container_width=True)
+
+                        st.success(
+                            f"✅ **{us_algo}** trained successfully. "
+                            "Navigate to **🧩 Unsupervised Prediction** in the sidebar to score new records."
+                        )
+
+                    except Exception as err:
+                        st.error(f"Training failed: {err}")
 
     # Tab 4: Export Model Bundle
     with tabs[3]:

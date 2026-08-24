@@ -12,6 +12,7 @@ NAVIGATION = [
     ("🤖", "Machine Learning"),
     ("🧪", "Experiments"),
     ("🎯", "Prediction"),
+    ("🧩", "Unsupervised Prediction"),
     ("📄", "Reports"),
 ]
 

@@ -51,10 +51,22 @@ def render():
                 if source_df is not None and feature in source_df.columns:
                     col_data = source_df[feature]
                     if pd.api.types.is_numeric_dtype(col_data):
-                        min_v = float(col_data.min()) if not np.isnan(col_data.min()) else 0.0
-                        max_v = float(col_data.max()) if not np.isnan(col_data.max()) else 100.0
-                        def_v = float(col_data.median()) if not np.isnan(col_data.median()) else 0.0
-                        values[feature] = st.number_input(f"{feature}", value=def_v, key=f"pred_num_{feature}")
+                        col_min = col_data.min()
+                        col_max = col_data.max()
+                        col_med = col_data.median()
+                        min_v = float(col_min) if pd.notna(col_min) else 0.0
+                        max_v = float(col_max) if pd.notna(col_max) else 100.0
+                        def_v = float(col_med) if pd.notna(col_med) else 0.0
+                        # Guard against degenerate ranges (e.g. constant column)
+                        if max_v <= min_v:
+                            max_v = min_v + 1.0
+                        values[feature] = st.number_input(
+                            f"{feature}",
+                            min_value=min_v,
+                            max_value=max_v,
+                            value=def_v,
+                            key=f"pred_num_{feature}"
+                        )
                     else:
                         unique_vals = [str(u) for u in col_data.dropna().unique()[:50]]
                         if not unique_vals:
@@ -64,7 +76,7 @@ def render():
                     values[feature] = st.text_input(f"{feature}", value="0", key=f"pred_txt_{feature}")
 
         if st.button("🎯 Generate Prediction", type="primary", use_container_width=True, key="btn_single_pred"):
-            row = make_single_row(values, features)
+            row = make_single_row(values, features, source_df=source_df)
             try:
                 prediction = bundle["pipeline"].predict(row)[0]
                 st.markdown(
@@ -95,28 +107,33 @@ def render():
                 st.dataframe(new_df.head(5), use_container_width=True)
 
                 if st.button("⚡ Run Batch Prediction", type="primary", use_container_width=True, key="btn_batch_pred"):
-                    output = new_df.copy()
-                    output["Prediction"] = predict_batch(bundle["pipeline"], new_df, bundle["features"])
-
-                    b1, b2 = st.columns(2)
-                    b1.metric("Batch Records Processed", len(output))
-                    b2.metric("Features Used", len(bundle["features"]))
-
-                    st.subheader("Batch Predictions Sample")
-                    st.dataframe(output.head(20), use_container_width=True)
-
-                    if pd.api.types.is_numeric_dtype(output["Prediction"]):
-                        fig_dist = px.histogram(output, x="Prediction", title="Batch Prediction Distribution", color_discrete_sequence=["#22d3ee"])
+                    try:
+                        output = new_df.copy()
+                        output["Prediction"] = predict_batch(bundle["pipeline"], new_df, bundle["features"])
+                    except Exception as error:
+                        st.error(f"Error executing batch prediction pipeline: {error}")
                     else:
-                        fig_dist = px.bar(output["Prediction"].value_counts().reset_index(), x="Prediction", y="count", title="Batch Prediction Counts", color_discrete_sequence=["#6d5dfc"])
+                        b1, b2 = st.columns(2)
+                        b1.metric("Batch Records Processed", len(output))
+                        b2.metric("Features Used", len(bundle["features"]))
 
-                    fig_dist.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#f8fafc")
-                    st.plotly_chart(fig_dist, use_container_width=True)
+                        st.subheader("Batch Predictions Sample")
+                        st.dataframe(output.head(20), use_container_width=True)
 
-                    st.download_button(
-                        "⬇ Download Predictions CSV",
-                        output.to_csv(index=False).encode(),
-                        "predictions_result.csv",
-                        "text/csv",
-                        type="primary"
-                    )
+                        if pd.api.types.is_numeric_dtype(output["Prediction"]):
+                            fig_dist = px.histogram(output, x="Prediction", title="Batch Prediction Distribution", color_discrete_sequence=["#22d3ee"])
+                        else:
+                            value_counts_df = output["Prediction"].value_counts().reset_index()
+                            value_counts_df.columns = ["Prediction", "count"]
+                            fig_dist = px.bar(value_counts_df, x="Prediction", y="count", title="Batch Prediction Counts", color_discrete_sequence=["#6d5dfc"])
+
+                        fig_dist.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#f8fafc")
+                        st.plotly_chart(fig_dist, use_container_width=True)
+
+                        st.download_button(
+                            "⬇ Download Predictions CSV",
+                            output.to_csv(index=False).encode(),
+                            "predictions_result.csv",
+                            "text/csv",
+                            type="primary"
+                        )

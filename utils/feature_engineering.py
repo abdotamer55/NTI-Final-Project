@@ -73,6 +73,12 @@ def evaluate_baseline(df, target_col, problem_type=None, cv=CV_FOLDS, random_sta
     if problem_type is None:
         problem_type = detect_problem_type(y)
 
+    if problem_type == "Classification" and y.nunique() < 2:
+        raise ValueError(
+            f"Target column '{target_col}' has only one distinct class after removing missing values. "
+            "Cross-validation requires at least 2 classes."
+        )
+
     n_samples = len(y)
     actual_cv = max(2, min(cv, n_samples))
 
@@ -185,26 +191,32 @@ def get_feature_importance(df, target_col, problem_type=None, top_n=MAX_TOP_FEAT
         # Fallback if get_feature_names_out fails
         trans_feature_names = [f"feat_{i}" for i in range(X_trans.shape[1])]
 
-    # Map transformed feature importances back to original features in X
+    # Map transformed feature importances back to original features in X.
+    #
+    # sklearn's ColumnTransformer names transformed columns as either:
+    #   "<transformer>__<column>"                 (e.g. numeric passthrough)
+    #   "<transformer>__<column>_<category>"       (e.g. one-hot encoded)
+    # Matching must respect this exact "__" / "_" boundary — a naive
+    # substring check (e.g. `"age" in name`) would wrongly match unrelated
+    # columns like "wage_scaled" or "electricity_bill", silently corrupting
+    # every ranking that depends on this function.
     orig_features = X.columns.tolist()
     importance_map = {col: 0.0 for col in orig_features}
+    # Longest-name-first so e.g. "income_level" is preferred over "income"
+    # when both could technically match the same transformed name.
+    sorted_features = sorted(orig_features, key=len, reverse=True)
 
     raw_importances = model.feature_importances_
 
     for name, imp in zip(trans_feature_names, raw_importances):
-        # Transformed names follow 'transformer_name__column_name' format in sklearn
-        matched = False
-        for col in orig_features:
-            if f"__{col}" in name or name.endswith(f"_{col}"):
-                importance_map[col] += imp
-                matched = True
+        remainder = name.split("__", 1)[1] if "__" in name else name
+        matched_col = None
+        for col in sorted_features:
+            if remainder == col or remainder.startswith(f"{col}_"):
+                matched_col = col
                 break
-        if not matched:
-            # Check if any orig_feature appears in name
-            for col in orig_features:
-                if col in name:
-                    importance_map[col] += imp
-                    break
+        if matched_col is not None:
+            importance_map[matched_col] += imp
 
     imp_df = pd.DataFrame([
         {"Feature": col, "Importance": importance_map[col]}
@@ -658,7 +670,10 @@ def apply_feature_recommendations(df, selected_recommendations, target_col=None)
                 denom = out[src_cols[1]].replace(0, np.nan)
                 series = (out[src_cols[0]] / denom).replace([np.inf, -np.inf], np.nan)
             elif "Binning" in f_type and src_cols:
-                series = pd.qcut(out[src_cols[0]], q=4, labels=False, duplicates="drop")
+                try:
+                    series = pd.qcut(out[src_cols[0]], q=4, labels=False, duplicates="drop")
+                except Exception:
+                    series = None
             elif "Datetime" in f_type and src_cols:
                 dt_series = pd.to_datetime(out[src_cols[0]], errors="coerce")
                 if "Year" in feat_name:
