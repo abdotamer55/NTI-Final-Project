@@ -14,6 +14,7 @@ NAVIGATION = [
     ("🎯", "Prediction"),
     ("🧩", "Unsupervised Prediction"),
     ("📄", "Reports"),
+    ("👥", "Our Team"),
 ]
 
 def load_css():

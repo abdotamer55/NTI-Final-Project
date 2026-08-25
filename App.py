@@ -15,7 +15,7 @@ load_css()
 from pages import (
     home, upload, analysis, preprocessing, visualization,
     feature_engineering, machine_learning, experiments,
-    prediction, unsupervised_prediction, reports
+    prediction, unsupervised_prediction, reports, our_team
 )
 
 PAGES = {
@@ -30,6 +30,7 @@ PAGES = {
     "Prediction": prediction,
     "Unsupervised Prediction": unsupervised_prediction,
     "Reports": reports,
+    "Our Team": our_team,
 }
 
 content = render_navigation()
