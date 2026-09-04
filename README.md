@@ -1,3 +1,5 @@
+🌐 Live App: <http://nti-final-project-data2piolt2ai.streamlit.app/>
+
 # 🚀 DataPilot AI
 
 ### Autonomous Data Preprocessing, Machine Learning & Prediction Platform
@@ -19,15 +21,25 @@ From data exploration and preprocessing to feature engineering, machine learning
 Data Science workflows often require multiple technical steps, including:
 
 * Understanding the dataset
+
 * Cleaning missing or inconsistent data
+
 * Detecting data types and distributions
+
 * Performing exploratory data analysis
+
 * Selecting appropriate preprocessing techniques
+
 * Engineering useful features
+
 * Choosing suitable machine learning models
+
 * Training and evaluating models
+
 * Comparing experiments
+
 * Generating predictions
+
 * Creating reports
 
 **DataPilot AI brings all of these steps together into one intelligent platform.**
@@ -43,13 +55,21 @@ The system analyzes the uploaded dataset, provides recommendations, allows users
 Upload datasets and automatically inspect:
 
 * Dataset shape
+
 * Number of rows and columns
+
 * Column names
+
 * Data types
+
 * Missing values
+
 * Duplicate records
+
 * Numerical features
+
 * Categorical features
+
 * Potential target columns
 
 Supported workflow is designed to make dataset exploration simple and interactive.
@@ -61,13 +81,21 @@ Supported workflow is designed to make dataset exploration simple and interactiv
 DataPilot AI automatically analyzes the dataset to identify important characteristics such as:
 
 * Missing values
+
 * Duplicate rows
+
 * Data type inconsistencies
+
 * Unique values
+
 * Numerical distributions
+
 * Categorical distributions
+
 * Outliers
+
 * Correlations
+
 * Class imbalance
 
 The platform provides a clear overview of the dataset before preprocessing begins.
@@ -81,11 +109,17 @@ The system acts as a **Data Science Assistant** by recommending suitable next st
 Examples include:
 
 * Missing value handling strategies
+
 * Encoding methods
+
 * Scaling techniques
+
 * Outlier treatment
+
 * Feature selection recommendations
+
 * Class imbalance handling
+
 * Suitable machine learning algorithms
 
 This helps guide users through the Data Science lifecycle, even when they are not experts.
@@ -99,12 +133,19 @@ Perform preprocessing operations through an interactive interface.
 Supported operations may include:
 
 * Removing duplicates
+
 * Handling missing values
+
 * Dropping unnecessary columns
+
 * Encoding categorical features
+
 * Feature scaling
+
 * Data type conversion
+
 * Outlier detection and treatment
+
 * Data transformation
 
 Users can choose preprocessing strategies while the platform provides intelligent recommendations.
@@ -118,13 +159,21 @@ Generate powerful visualizations to better understand the dataset.
 Available visualizations include:
 
 * Histograms
+
 * Bar charts
+
 * Pie charts
+
 * Box plots
+
 * Scatter plots
+
 * Line charts
+
 * Correlation heatmaps
+
 * Distribution plots
+
 * Feature comparison charts
 
 The visualization module helps transform raw data into meaningful insights.
@@ -138,10 +187,15 @@ Improve machine learning performance by creating and transforming features.
 Features include:
 
 * Feature encoding
+
 * Feature scaling
+
 * Feature selection
+
 * Feature transformation
+
 * Derived feature creation
+
 * Removing low-information features
 
 ---
@@ -153,18 +207,27 @@ DataPilot AI supports training multiple machine learning models depending on the
 ### Classification Models
 
 * Logistic Regression
+
 * Decision Tree Classifier
+
 * Random Forest Classifier
+
 * Support Vector Machine
+
 * K-Nearest Neighbors
+
 * XGBoost Classifier
 
 ### Regression Models
 
 * Linear Regression
+
 * Decision Tree Regressor
+
 * Random Forest Regressor
+
 * Support Vector Regressor
+
 * XGBoost Regressor
 
 The platform can automatically compare models and identify the best-performing solution.
@@ -178,14 +241,23 @@ Compare multiple machine learning experiments in one place.
 Track:
 
 * Model name
+
 * Training performance
+
 * Testing performance
+
 * Accuracy
+
 * Precision
+
 * Recall
+
 * F1 Score
+
 * MAE
+
 * RMSE
+
 * R² Score
 
 This allows users to easily identify the best model for their dataset.
@@ -199,15 +271,25 @@ After selecting and training the best model, users can generate predictions usin
 The trained pipeline can be reused without manually repeating preprocessing steps.
 
 ```text
+
 New Data
-    ↓
+
+    ↓
+
 Preprocessing Pipeline
-    ↓
+
+    ↓
+
 Feature Transformation
-    ↓
+
+    ↓
+
 Trained Model
-    ↓
+
+    ↓
+
 Prediction
+
 ```
 
 ---
@@ -219,13 +301,21 @@ Generate reports summarizing the complete Data Science workflow.
 Reports can include:
 
 * Dataset overview
+
 * Data quality analysis
+
 * Missing values summary
+
 * Preprocessing steps
+
 * Visualizations
+
 * Feature engineering operations
+
 * Model performance
+
 * Best model selection
+
 * Final evaluation metrics
 
 ---
@@ -233,25 +323,45 @@ Reports can include:
 # 🔄 Platform Workflow
 
 ```text
+
 🏠 Home
-   ↓
+
+   ↓
+
 📤 Upload Dataset
-   ↓
+
+   ↓
+
 🔍 Data Analysis
-   ↓
+
+   ↓
+
 🧹 Data Preprocessing
-   ↓
+
+   ↓
+
 📊 Visualization
-   ↓
+
+   ↓
+
 ⚙️ Feature Engineering
-   ↓
+
+   ↓
+
 🤖 Machine Learning
-   ↓
+
+   ↓
+
 🧪 Experiments & Model Comparison
-   ↓
+
+   ↓
+
 🔮 Prediction
-   ↓
+
+   ↓
+
 📄 Reports
+
 ```
 
 ---
@@ -259,53 +369,101 @@ Reports can include:
 # 🏗️ Project Architecture
 
 ```text
+
 DataPilot-AI/
+
 │
+
 ├── 📄 App.py
+
 │
+
 ├── 📁 pages/
-│   ├── Home.py
-│   ├── Upload.py
-│   ├── Analysis.py
-│   ├── Preprocessing.py
-│   ├── Visualization.py
-│   ├── Feature_Engineering.py
-│   ├── Machine_Learning.py
-│   ├── Experiments.py
-│   ├── Prediction.py
-│   ├── Reports.py
-│   └── Our_Team.py
+
+│   ├── Home.py
+
+│   ├── Upload.py
+
+│   ├── Analysis.py
+
+│   ├── Preprocessing.py
+
+│   ├── Visualization.py
+
+│   ├── Feature_Engineering.py
+
+│   ├── Machine_Learning.py
+
+│   ├── Experiments.py
+
+│   ├── Prediction.py
+
+│   ├── Reports.py
+
+│   └── Our_Team.py
+
 │
+
 ├── 📁 utils/
-│   ├── data_loader.py
-│   ├── analysis.py
-│   ├── preprocessing.py
-│   ├── visualization.py
-│   ├── feature_engineering.py
-│   ├── recommendation_engine.py
-│   ├── model_training.py
-│   ├── evaluation.py
-│   └── prediction.py
+
+│   ├── data_loader.py
+
+│   ├── analysis.py
+
+│   ├── preprocessing.py
+
+│   ├── visualization.py
+
+│   ├── feature_engineering.py
+
+│   ├── recommendation_engine.py
+
+│   ├── model_training.py
+
+│   ├── evaluation.py
+
+│   └── prediction.py
+
 │
+
 ├── 📁 src/
-│   ├── helpers.py
-│   ├── session_manager.py
-│   └── pipeline_manager.py
+
+│   ├── helpers.py
+
+│   ├── session_manager.py
+
+│   └── pipeline_manager.py
+
 │
+
 ├── 📁 styles/
-│   └── main.css
+
+│   └── main.css
+
 │
+
 ├── 📁 assets/
-│   └── images/
-│       └── logo.png
+
+│   └── images/
+
+│       └── logo.png
+
 │
+
 ├── 📁 data/
+
 │
+
 ├── 📁 models/
+
 │
+
 ├── 📄 requirements.txt
+
 │
+
 └── 📄 README.md
+
 ```
 
 ---
@@ -315,23 +473,29 @@ DataPilot-AI/
 ### Frontend & Application
 
 * Python
+
 * Streamlit
+
 * HTML / CSS
 
 ### Data Analysis
 
 * Pandas
+
 * NumPy
 
 ### Data Visualization
 
 * Matplotlib
+
 * Plotly
+
 * Seaborn
 
 ### Machine Learning
 
 * Scikit-learn
+
 * XGBoost
 
 ### Model Management
@@ -345,43 +509,57 @@ DataPilot-AI/
 ## 1️⃣ Clone the Repository
 
 ```bash
+
 git clone https://github.com/your-username/DataPilot-AI.git
+
 ```
 
 ## 2️⃣ Navigate to the Project
 
 ```bash
+
 cd DataPilot-AI
+
 ```
 
 ## 3️⃣ Create a Virtual Environment
 
 ```bash
+
 python -m venv venv
+
 ```
 
 ### Windows
 
 ```bash
+
 venv\Scripts\activate
+
 ```
 
 ### Linux / macOS
 
 ```bash
+
 source venv/bin/activate
+
 ```
 
 ## 4️⃣ Install Dependencies
 
 ```bash
+
 pip install -r requirements.txt
+
 ```
 
 ## 5️⃣ Run the Application
 
 ```bash
+
 streamlit run App.py
+
 ```
 
 The application will start locally in your browser.
@@ -393,33 +571,54 @@ The application will start locally in your browser.
 Example dependencies:
 
 ```text
+
 streamlit
+
 pandas
+
 numpy
+
 scikit-learn
+
 matplotlib
+
 seaborn
+
 plotly
+
 xgboost
+
 joblib
+
 openpyxl
+
 ```
 
 ---
 
 # 🎯 Supported Data Science Workflow
 
-| Stage                  | Description                           |
+| Stage                  | Description                           |
+
 | ---------------------- | ------------------------------------- |
-| 📤 Upload              | Upload and inspect datasets           |
-| 🔍 Analysis            | Understand data structure and quality |
-| 🧹 Preprocessing       | Clean and prepare the dataset         |
-| 📊 Visualization       | Generate interactive visualizations   |
-| ⚙️ Feature Engineering | Transform and improve features        |
-| 🤖 Machine Learning    | Train multiple ML models              |
-| 🧪 Experiments         | Compare model performance             |
-| 🔮 Prediction          | Generate predictions on new data      |
-| 📄 Reports             | Export the complete analysis workflow |
+
+| 📤 Upload              | Upload and inspect datasets           |
+
+| 🔍 Analysis            | Understand data structure and quality |
+
+| 🧹 Preprocessing       | Clean and prepare the dataset         |
+
+| 📊 Visualization       | Generate interactive visualizations   |
+
+| ⚙️ Feature Engineering | Transform and improve features        |
+
+| 🤖 Machine Learning    | Train multiple ML models              |
+
+| 🧪 Experiments         | Compare model performance             |
+
+| 🔮 Prediction          | Generate predictions on new data      |
+
+| 📄 Reports             | Export the complete analysis workflow |
 
 ---
 
@@ -430,27 +629,49 @@ The goal of **DataPilot AI** is to make Data Science more accessible by reducing
 Instead of manually moving between multiple tools and writing repetitive preprocessing and training code, users can interact with a unified intelligent platform.
 
 ```text
+
 Raw Dataset
-     ↓
+
+     ↓
+
 DataPilot AI
-     ↓
+
+     ↓
+
 Data Understanding
-     ↓
+
+     ↓
+
 Intelligent Recommendations
-     ↓
+
+     ↓
+
 Automated Preprocessing
-     ↓
+
+     ↓
+
 Visualization & Insights
-     ↓
+
+     ↓
+
 Feature Engineering
-     ↓
+
+     ↓
+
 Machine Learning
-     ↓
+
+     ↓
+
 Model Evaluation
-     ↓
+
+     ↓
+
 Best Model
-     ↓
+
+     ↓
+
 Predictions
+
 ```
 
 ---
@@ -460,15 +681,25 @@ Predictions
 Future versions of DataPilot AI may include:
 
 * 🤖 AI-powered Data Science Agent
+
 * 💬 Natural Language interaction with datasets
+
 * 📁 Support for more file formats
+
 * ☁️ Cloud deployment
+
 * 🔗 Database integration
+
 * 🧬 Deep Learning models
+
 * 🔄 Automated hyperparameter tuning
+
 * 📊 Advanced AutoML capabilities
+
 * 📝 PDF report generation
+
 * 👥 User authentication and project management
+
 * 🐳 Docker deployment
 
 ---
