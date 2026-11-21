@@ -2,9 +2,21 @@
 
 An interactive data science workspace built with Python and Streamlit as an NTI final project.
 
-[Open the hosted app](https://nti-final-project-data2piolt2ai.streamlit.app/) · [Application entry point](App.py)
+[Open the hosted app](http://nti-final-project-data2piolt2ai.streamlit.app/) · [Application entry point](App.py)
 
 ![DataPilot AI project logo](assets/images/logo.png)
+
+## App Screenshots
+
+Real captures from the [live deployed app](http://nti-final-project-data2piolt2ai.streamlit.app/):
+
+**Home**
+
+![DataPilot AI live app - home](screenshots/datapilot_home.png)
+
+**Upload Dataset page**
+
+![DataPilot AI live app - upload dataset](screenshots/datapilot_upload.png)
 
 ## Problem Statement
 
